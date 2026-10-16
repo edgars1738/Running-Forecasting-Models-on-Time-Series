@@ -1,0 +1,151 @@
+---
+title: "Assignment 4"
+author: "Edgar Santiago"
+date: "10/16/2026"
+output: html_document
+---
+
+```{r}
+# Data Setup - Converting to Time Series
+## The TOTALNSA data set contains monthly total vehicle sales. The time series plot shows how vehicle sales change over time, while the autocorrelation function (ACF) helps identify patterns and relationships between observations across different months.
+library(fpp2)
+library(forecast)
+
+TOTALNSA <- read.csv("TOTALNSA.csv")
+
+TOTALNSA$observation_date <- as.Date(
+  TOTALNSA$observation_date,
+  format = "%m/%d/%Y")
+
+TOTALNSA_ts <- ts(
+  TOTALNSA$TOTALNSA,
+  start = c(1976, 1),
+  frequency = 12)
+
+attributes(TOTALNSA_ts)
+plot(TOTALNSA_ts)
+acf(TOTALNSA_ts)
+
+# Question 1
+# Mean
+## The mean model forecasts future vehicle sales using the average of all historical observations. This provides a baseline forecast but does not account for changes in trend or seasonality.
+mean_forecast <- meanf(TOTALNSA_ts,12)
+plot(mean_forecast)
+
+# Naive
+## The naive model uses the most recent vehicle sales value to forecast all future months. It assumes sales will remain at the latest observed level.
+naive_forecast <- naive(TOTALNSA_ts,12)
+plot(naive_forecast)
+
+# Random Walk With Drift
+## The random walk with drift model uses the latest observation and the average historical change to forecast future vehicle sales. It accounts for an overall upward or downward trend.
+rwf_forecast <- rwf(TOTALNSA_ts,12, drift = TRUE)
+plot(rwf_forecast)
+
+# Seasonal Naive
+## The seasonal naive model forecasts future vehicle sales using the values from the same months in the previous year. This is useful for TOTALNSA because vehicle sales may follow recurring seasonal patterns.
+snaive_forecast <- snaive(TOTALNSA_ts,12)
+plot(snaive_forecast)
+
+# Moving Average
+## The five-month and nine-month moving averages smooth fluctuations in vehicle sales. The five-month average responds more quickly to changes, while the nine-month average produces a smoother trend.
+MA5_forecast <- ma(TOTALNSA_ts, order = 5)
+plot(MA5_forecast)
+
+MA9_forecast <- ma(TOTALNSA_ts, order = 9)
+plot(MA9_forecast)
+
+# ETS
+## The ETS model automatically selects an exponential smoothing method based on the historical data. Its forecast uses the selected level, trend, and seasonal components to predict future vehicle sales.
+ets_forecast <- forecast(ets(TOTALNSA_ts),12)
+plot(ets_forecast)
+
+# Holt Winters
+## The Holt-Winters model uses exponential smoothing to estimate the level, trend, and seasonal patterns in vehicle sales. Its forecast extends these estimated patterns into the next 12 months.
+HW_forecast <- forecast(HoltWinters(TOTALNSA_ts),12)
+plot(HW_forecast)
+
+# Question 2
+## The model outputs display the forecasted vehicle sales for the next 12 months, along with prediction intervals for the forecasting models. Comparing the results shows how each method produces different forecasts based on its assumptions about historical averages, recent values, trends, and seasonal patterns. These outputs help evaluate how the models interpret the TOTALNSA data and forecast future vehicle sales.
+mean_forecast
+naive_forecast
+rwf_forecast
+snaive_forecast
+MA5_forecast
+MA9_forecast
+ets_forecast
+HW_forecast
+
+# Question 3
+## The combined chart compares the historical TOTALNSA data with forecasts from the different models. Each colored line represents a model's forecast for the next 12 months. Differences between the forecast lines show how the models interpret historical vehicle sales differently, particularly in terms of trends and seasonal patterns. This chart provides a visual comparison of the models, while the accuracy measures are used to determine which model performs best.
+plot(TOTALNSA_ts,
+     main = "TOTALNSA Forecast Comparison",
+     xlab = "Year",
+     ylab = "TOTALNSA",
+     xlim = c(2000, 2027))
+lines(mean_forecast$mean, col="red",lwd = 2)
+lines(naive_forecast$mean, col="blue",lwd = 2)
+lines(rwf_forecast$mean, col="green",lwd = 2)
+lines(snaive_forecast$mean, col="orange",lwd = 2)
+lines(MA5_forecast, col="purple",lwd = 2)
+lines(MA9_forecast, col="pink", lwd = 2)
+lines(ets_forecast$mean, col="brown", lwd = 2)
+lines(HW_forecast$mean, col="darkgreen", lwd = 2)
+
+# Question 4
+## To compare the forecasting models, I used Mean Absolute Error (MAE) to measure the average absolute difference between forecasted and actual vehicle sales during the test period. A lower MAE indicates that a model's forecasts were closer to the actual values, while a higher MAE indicates larger forecasting errors.
+train <- window(TOTALNSA_ts,
+                end = c(2025, 12))
+
+test <- window(TOTALNSA_ts,
+               start = c(2026, 1))
+
+# Mean
+mean_test <- meanf(train, 12)
+
+# Naive
+naive_test <- naive(train, 12)
+
+# Random Walk
+rwf_test <- rwf(train, 12, drift = TRUE)
+
+# Seasonal Naive
+snaive_test <- snaive(train, 12)
+
+# ETS
+ets_test <- forecast(ets(train),12) 
+
+# Holr-Winters
+HW_test <- forecast(HoltWinters(train),12)
+
+# Accuracy
+accuracy(mean_test, test)
+accuracy(naive_test, test)
+accuracy(rwf_test, test)
+accuracy(snaive_test, test)
+accuracy(ets_test, test)
+accuracy(HW_test, test)
+
+mae_results <- data.frame(
+  Model = c("Mean",
+            "Naive",
+            "Random Walk with Drift",
+            "Seasonal Naive",
+            "ETS",
+            "Holt-Winters"),
+
+# MAE Comparison
+ MAE = c(
+    accuracy(mean_test, test)["Test set", "MAE"],
+    accuracy(naive_test, test)["Test set", "MAE"],
+    accuracy(rwf_test, test)["Test set", "MAE"],
+    accuracy(snaive_test, test)["Test set", "MAE"],
+    accuracy(ets_test, test)["Test set", "MAE"],
+    accuracy(HW_test, test)["Test set", "MAE"]))
+
+mae_results
+
+# Model with Lowest MAE
+mae_results[which.min(mae_results$MAE),]
+## Based on the MAE comparison, the Holt-Winters model performed best, with an MAE of 0.4066513. This means that its forecast had the lowest MAE among the models evaluated. Therefore, I select this model as the best forecasting method for TOTALNSA based on its test-period accuracy.
+```
